@@ -79,19 +79,23 @@ public class MainController {
 		for (Object obj : cursor) {
 			Document doc = (Document) obj;
 
-			String tousgenres = doc.getString("genres");
-			String[] listegenre = tousgenres.split("\\|");
-			ArrayList<Genre> genres = new ArrayList<Genre>();
-
-			for (String g : listegenre) {
-				genres.add(new Genre(0, g));
-			}
-
-			Movie mov = new Movie(doc.getInteger("_id"), doc.getString("title"), genres);
+			Movie mov = getMovie(doc);
 			movies.add(mov);
 		}
 
 		return movies;
+	}
+
+	private Movie getMovie(Document doc) {
+		String tousgenres = doc.getString("genres");
+		String[] listegenre = tousgenres.split("\\|");
+		ArrayList<Genre> genres = new ArrayList<Genre>();
+
+		for (String g : listegenre) {
+			genres.add(new Genre(0, g));
+		}
+
+		return new Movie(doc.getInteger("_id"), doc.getString("title"), genres);
 	}
 
 	private List<Movie> getMoviesMDB(MongoClient mongo, Integer userId) {
@@ -99,6 +103,7 @@ public class MainController {
 
 		MongoDatabase db = mongo.getDatabase("MovieLens");
 		MongoCollection table = db.getCollection("users");
+		MongoCollection table2 = db.getCollection("movies");
 
 		BasicDBObject searchQuery = new BasicDBObject();
 		searchQuery.put("_id", userId);
@@ -106,7 +111,17 @@ public class MainController {
 		FindIterable cursor = table.find(searchQuery);
 
 		for (Object obj : cursor) {
-			Document doc = (Document) obj;
+			Document user = (Document) obj;
+			ArrayList<Document> list_mov = (ArrayList) user.get("movies");
+			for (Document doc : list_mov) {
+				Integer mov_id = doc.getInteger("movieid");
+				BasicDBObject searchQuery2 = new BasicDBObject();
+				searchQuery2.put("_id", mov_id);
+				FindIterable cursor2 = table2.find(searchQuery2);
+				Document mov = (Document) cursor2.first();
+				Movie m = getMovie(mov);
+				movies.add(m);
+			}
 		}
 
 		return movies;
