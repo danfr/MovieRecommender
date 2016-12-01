@@ -85,7 +85,22 @@ public class MainController {
     }
 
     private List<Movie> getMoviesNeo(Driver neo, Integer userId) {
-        return null;
+        ArrayList<Movie> movies = new ArrayList<Movie>();
+
+        Session session = neo.session();
+
+        StatementResult result = session.run("MATCH (u:User{id:" + userId + "})-[:RATED]->(m:Movie)-[:CATEGORIZED_AS]->(g:Genre)\n" +
+                "RETURN m.id AS id, m.title AS title, collect(g.name) AS genre\n" +
+                "ORDER BY id");
+
+        while (result.hasNext()) {
+            Record record = result.next();
+            movies.add(getMovie(record));
+        }
+
+        session.close();
+
+        return movies;
     }
 
     private List<Movie> getMoviesNeo(Driver neo) {
@@ -94,7 +109,7 @@ public class MainController {
         Session session = neo.session();
 
         StatementResult result = session.run("MATCH (m:Movie)-[:CATEGORIZED_AS]->(g:Genre)\n" +
-                "RETURN m.id AS id, m.title AS title, g.name AS genre\n" +
+                "RETURN m.id AS id, m.title AS title, collect(g.name) AS genre\n" +
                 "ORDER BY id");
 
         while (result.hasNext()) {
@@ -110,7 +125,7 @@ public class MainController {
     private Driver NeoConnect() {
         Driver driver = null;
         try {
-            driver = GraphDatabase.driver("bolt://localhost", AuthTokens.basic("neo4j", "neo4j"));
+            driver = GraphDatabase.driver("bolt://localhost", AuthTokens.basic("neo4j", "123"));
         } catch (Exception e) {
             System.err.println("Erreur de connexion à la base Neo4j :");
             e.printStackTrace();
