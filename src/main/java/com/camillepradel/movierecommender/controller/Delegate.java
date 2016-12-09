@@ -4,13 +4,17 @@ import com.camillepradel.movierecommender.model.Genre;
 import com.camillepradel.movierecommender.model.Movie;
 import com.camillepradel.movierecommender.model.Rating;
 import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
+import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.util.JSON;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.json.JSONArray;
 import org.neo4j.driver.v1.*;
 
 import java.util.ArrayList;
@@ -311,8 +315,60 @@ public class Delegate {
         return result;
     }
 
-    public static ArrayList<Rating> recoMDB1(Integer userId) {
-        return null;
+    public static ArrayList<Rating> recoMDB(Integer userId, int nb) {
+        MongoClient mongo = Delegate.MongoConnect();
+        ArrayList<Rating> movies = new ArrayList<Rating>();
+
+        MongoDatabase db = mongo.getDatabase("MovieLens");
+        MongoCollection table = db.getCollection("users");
+        MongoCollection table2 = db.getCollection("movies");
+        ArrayList<Integer> ids = new ArrayList<Integer>();
+
+        BasicDBObject searchQuery = new BasicDBObject();
+        searchQuery.put("_id", userId);
+
+        FindIterable cursor = table.find(searchQuery);
+
+        for (Object obj : cursor) {
+            Document user = (Document) obj;
+            ArrayList<Document> list_mov = (ArrayList) user.get("movies");
+            for (Document doc : list_mov) {
+                Integer mov_id = doc.getInteger("movieid");
+                ids.add(mov_id);
+            }
+        }
+
+        JSONArray jlist = new JSONArray(ids);
+        String id_list_JSON = jlist.toString();
+
+        ArrayList<DBObject> bson = new ArrayList<DBObject>();
+        bson.add((DBObject) JSON.parse("{$unwind: \"$movies\"}"));
+        bson.add((DBObject) JSON.parse("{$project: {_id: \"$movies.movieid\",userId: \"$_id\"}}"));
+        bson.add((DBObject) JSON.parse("{$match: {userId: { $ne: " + userId + " },$or:[{_id: {$in: " + id_list_JSON + "}}]}}"));
+        bson.add((DBObject) JSON.parse("{$group: {_id: \"$userId\",nbIteration: {$sum: 1}}}"));
+        bson.add((DBObject) JSON.parse("{$sort: { \"nbIteration\": -1}}"));
+        bson.add((DBObject) JSON.parse("{$limit: " + nb + "}"));
+
+        AggregateIterable cursor_agg = table.aggregate(bson);
+        ArrayList<Movie> liste_autre_user = new ArrayList<Movie>();
+
+        for (Object obj : cursor_agg) {
+            Document doc = (Document) obj;
+            Integer autre_id = doc.getInteger("_id");
+            liste_autre_user.addAll(getMoviesMDB(mongo, autre_id));
+        }
+
+        Rating r;
+        for (Movie m : liste_autre_user) {
+            r = new Rating(m, 0, 0);
+            if (!ids.contains(m.getId()) && !movies.contains(r)) {
+                movies.add(r);
+            }
+        }
+
+        Delegate.MongoStop(mongo);
+
+        return movies;
     }
 
     public static ArrayList<Rating> recoMDB2(Integer userId) {

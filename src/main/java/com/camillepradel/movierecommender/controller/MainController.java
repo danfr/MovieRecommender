@@ -16,8 +16,8 @@ import java.util.List;
 
 @Controller
 public class MainController {
-    String message = "Welcome to Spring MVC!";
-    static final Boolean MONGO = false;
+    private String message = "Welcome to Spring MVC!";
+    private static final Boolean MONGO = true; // Changer cette variable pour switcher d'une base à l'autre
  
 	@RequestMapping("/hello")
 	public ModelAndView showMessage(
@@ -160,13 +160,13 @@ public class MainController {
 
         switch (processingMode) {
             case 1:
-                recommendations = (MONGO) ? Delegate.recoMDB1(userId) : Delegate.recoNeo1(userId);
+                recommendations = (MONGO) ? Delegate.recoMDB(userId, 1) : Delegate.recoNeo1(userId);
                 break;
             case 2:
-                recommendations = (MONGO) ? Delegate.recoMDB2(userId) : Delegate.recoNeo2(userId);
+                recommendations = (MONGO) ? Delegate.recoMDB(userId, 5) : Delegate.recoNeo2(userId);
                 break;
             case 3:
-                recommendations = (MONGO) ? Delegate.recoMDB2(userId) : Delegate.recoNeo2(userId);
+                recommendations = (MONGO) ? Delegate.recoMDB(userId, 5) : Delegate.recoNeo2(userId);
                 break;
         }
 
